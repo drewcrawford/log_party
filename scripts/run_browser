@@ -10,6 +10,8 @@ TIMEOUT_SEC=30
 URL=""
 EXEC_CMD=""
 SERVER_PID=""
+OMIT_BROWSER_LOGS=false
+OMIT_STDIO_LOGS=false
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -33,6 +35,14 @@ while [[ $# -gt 0 ]]; do
         --exec)
             EXEC_CMD="$2"
             shift 2
+            ;;
+        --omit-browser-logs)
+            OMIT_BROWSER_LOGS=true
+            shift
+            ;;
+        --omit-stdio-logs)
+            OMIT_STDIO_LOGS=true
+            shift
             ;;
         --*)
             echo "Unknown option: $1"
@@ -59,10 +69,14 @@ cleanup() {
         kill $BROWSER_PID 2>/dev/null || true
         pkill -9 -P $BROWSER_PID 2>/dev/null || true
     fi
-    # Kill the server if running
+    # Kill the server only if we started it (--exec was used)
     if [ -n "$SERVER_PID" ]; then
         kill $SERVER_PID 2>/dev/null || true
         pkill -9 -P $SERVER_PID 2>/dev/null || true
+        # Also kill by port to catch orphaned processes
+        if [ -n "$PORT" ] && lsof -ti:$PORT > /dev/null 2>&1; then
+            lsof -ti:$PORT | xargs kill -9 2>/dev/null || true
+        fi
     fi
 }
 trap cleanup EXIT INT TERM
@@ -77,7 +91,11 @@ if [ -n "$EXEC_CMD" ]; then
     fi
 
     echo "Starting: $EXEC_CMD"
-    $EXEC_CMD > /dev/null 2>&1 &
+    if [ "$OMIT_STDIO_LOGS" = true ]; then
+        $EXEC_CMD > /dev/null 2>&1 &
+    else
+        $EXEC_CMD &
+    fi
     SERVER_PID=$!
 
     # Wait for server to be ready
@@ -100,6 +118,7 @@ echo "Opening $URL in $BROWSER (timeout: ${TIMEOUT_SEC}s)..."
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 TIMEOUT_MS=$((TIMEOUT_SEC * 1000))
 BASH_TIMEOUT=$((TIMEOUT_SEC + 5))
-TARGET_URL="$URL" BROWSER="$BROWSER" TIMEOUT_MS="$TIMEOUT_MS" timeout -s KILL -k 5 $BASH_TIMEOUT node "$SKILL_DIR/run.js" "$SCRIPT_DIR/browser-console-capture.js" &
+TARGET_URL="$URL" BROWSER="$BROWSER" TIMEOUT_MS="$TIMEOUT_MS" OMIT_BROWSER_LOGS="$OMIT_BROWSER_LOGS" timeout -s KILL -k 5 $BASH_TIMEOUT node "$SKILL_DIR/run.js" "$SCRIPT_DIR/browser-console-capture.js" &
 BROWSER_PID=$!
 wait $BROWSER_PID
+cleanup

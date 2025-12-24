@@ -3,6 +3,7 @@ const playwright = require('playwright');
 const TARGET_URL = process.env.TARGET_URL || 'http://127.0.0.1:1334';
 const BROWSER_TYPE = process.env.BROWSER || 'firefox';
 const TIMEOUT_MS = parseInt(process.env.TIMEOUT_MS || '30000');
+const OMIT_BROWSER_LOGS = process.env.OMIT_BROWSER_LOGS === 'true';
 
 // Overall timeout (this is expected, not an error)
 const timeoutId = setTimeout(() => {
@@ -23,9 +24,11 @@ const timeoutId = setTimeout(() => {
 
   // Capture all console messages
   page.on('console', msg => {
-    const text = msg.text();
-    const type = msg.type();
-    console.log(`[${type}] ${text}`);
+    if (!OMIT_BROWSER_LOGS) {
+      const text = msg.text();
+      const type = msg.type();
+      console.log(`[${type}] ${text}`);
+    }
   });
 
   // Capture page errors

@@ -53,7 +53,7 @@ for BROWSER in $BROWSERS; do
     echo ""
     echo "=== Testing $BROWSER ==="
 
-    OUTPUT=$(./scripts/run_browser "$URL" --$BROWSER --timeout $TIMEOUT_SEC 2>&1) || true
+    OUTPUT=$(./scripts/run_browser "$URL" --$BROWSER --timeout $TIMEOUT_SEC --omit-stdio-logs 2>&1) || true
 
     MISSING=0
     for MSG in "${EXPECTED_MESSAGES[@]}"; do
@@ -71,6 +71,35 @@ for BROWSER in $BROWSERS; do
         FAILED=$((FAILED + 1))
     fi
 done
+
+# Fourth case: Check if wasm-server-runner forwards console output
+echo ""
+echo "=== Testing wasm-server-runner output (firefox) ==="
+
+# Kill existing server first
+cleanup
+sleep 1
+
+OUTPUT=$(./scripts/run_browser "$URL" --firefox --timeout $TIMEOUT_SEC --exec "./scripts/example_log" --omit-browser-logs 2>&1) || true
+
+# Check for expected messages in server output
+MISSING=0
+for MSG in "${EXPECTED_MESSAGES[@]}"; do
+    if ! echo "$OUTPUT" | grep -q "$MSG"; then
+        echo "  MISSING: $MSG"
+        MISSING=1
+    fi
+done
+
+if [ $MISSING -eq 0 ]; then
+    echo "  PASS: All expected messages found in server output"
+    PASSED=$((PASSED + 1))
+else
+    echo "  FAIL: Some messages missing from server output"
+    echo "  Output was:"
+    echo "$OUTPUT" | head -50
+    FAILED=$((FAILED + 1))
+fi
 
 echo ""
 echo "=== Results ==="

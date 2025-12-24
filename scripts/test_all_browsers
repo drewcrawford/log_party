@@ -50,6 +50,7 @@ FAILED=0
 
 echo ""
 echo "example_thread_log:"
+echo "  (tests cargo run --example, NOT cargo test; tests wasm-server-runner, NOT wasm-bindgen-test-runner)"
 
 THREAD_EXPECTED_MESSAGES=(
     "debug: log_party (from thread)"
@@ -105,6 +106,7 @@ fi
 # example_thread_panic tests
 echo ""
 echo "example_thread_panic:"
+echo "  (tests cargo run --example, NOT cargo test; tests wasm-server-runner, NOT wasm-bindgen-test-runner)"
 
 EXPECTED_THREAD_PANIC="unreachable"
 
@@ -141,6 +143,7 @@ echo "    console_error_panic_hook::set_once();"
 # example_thread_panic_hook tests
 echo ""
 echo "example_thread_panic_hook:"
+echo "  (tests cargo run --example, NOT cargo test; tests wasm-server-runner, NOT wasm-bindgen-test-runner)"
 
 EXPECTED_THREAD_PANIC_HOOK="log_party panic from thread!"
 
@@ -171,7 +174,9 @@ else
     FAILED=$((FAILED + 1))
 fi
 
+echo ""
 echo "example_log:"
+echo "  (tests cargo run --example, NOT cargo test; tests wasm-server-runner, NOT wasm-bindgen-test-runner)"
 
 for BROWSER in $BROWSERS; do
     # Map browser name for display
@@ -222,6 +227,7 @@ fi
 # example_panic tests
 echo ""
 echo "example_panic:"
+echo "  (tests cargo run --example, NOT cargo test; tests wasm-server-runner, NOT wasm-bindgen-test-runner)"
 
 EXPECTED_PANIC="unreachable"
 
@@ -255,6 +261,7 @@ fi
 # example_panic_hook tests
 echo ""
 echo "example_panic_hook:"
+echo "  (tests cargo run --example, NOT cargo test; tests wasm-server-runner, NOT wasm-bindgen-test-runner)"
 
 EXPECTED_PANIC_HOOK="log_party panic!"
 

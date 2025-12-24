@@ -1,5 +1,5 @@
 #![cfg(target_arch = "wasm32")]
 
 fn main() {
-    log_party::thread_log();
+    wasm_bindgen_futures::spawn_local(log_party::thread_log());
 }

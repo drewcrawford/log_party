@@ -1,0 +1,46 @@
+#!/bin/bash
+set -e
+cd "$(dirname "$0")/.."
+
+SKILL_DIR="$HOME/.claude/plugins/cache/playwright-skill/playwright-skill/4.1.0/skills/playwright-skill"
+PORT=1334
+TIMEOUT_SEC=${TIMEOUT_SEC:-30}
+
+# Kill any existing process on the port
+if lsof -ti:$PORT > /dev/null 2>&1; then
+    echo "Killing existing process on port $PORT..."
+    lsof -ti:$PORT | xargs kill -9 2>/dev/null || true
+    sleep 1
+fi
+
+# Start the wasm-server-runner in background (redirect to avoid blocking on exit)
+echo "Starting wasm-server-runner..."
+./scripts/example_log > /dev/null 2>&1 &
+SERVER_PID=$!
+
+cleanup() {
+    echo "Cleanup starting..."
+    kill $SERVER_PID 2>/dev/null || true
+    pkill -9 -P $SERVER_PID 2>/dev/null || true
+    echo "Cleanup done"
+}
+trap cleanup EXIT
+
+# Wait for server to be ready
+echo "Waiting for server to start..."
+for i in $(seq 1 15); do
+    if curl -s http://127.0.0.1:$PORT > /dev/null 2>&1; then
+        echo "Server is ready!"
+        break
+    fi
+    if [ $i -eq 15 ]; then
+        echo "Timeout waiting for server to start"
+        exit 1
+    fi
+    sleep 1
+done
+
+# Run the Playwright test with timeout
+echo "Running console capture test (timeout: ${TIMEOUT_SEC}s)..."
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+TARGET_URL="http://127.0.0.1:$PORT" timeout -s KILL -k 5 $TIMEOUT_SEC node "$SKILL_DIR/run.js" "$SCRIPT_DIR/firefox-console-capture.js"

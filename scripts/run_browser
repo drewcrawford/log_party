@@ -1,0 +1,105 @@
+#!/bin/bash
+set -e
+cd "$(dirname "$0")/.."
+
+SKILL_DIR="$HOME/.claude/plugins/cache/playwright-skill/playwright-skill/4.1.0/skills/playwright-skill"
+
+# Defaults
+BROWSER="firefox"
+TIMEOUT_SEC=30
+URL=""
+EXEC_CMD=""
+SERVER_PID=""
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --firefox)
+            BROWSER="firefox"
+            shift
+            ;;
+        --chromium|--chrome)
+            BROWSER="chromium"
+            shift
+            ;;
+        --safari|--webkit)
+            BROWSER="webkit"
+            shift
+            ;;
+        --timeout)
+            TIMEOUT_SEC="$2"
+            shift 2
+            ;;
+        --exec)
+            EXEC_CMD="$2"
+            shift 2
+            ;;
+        --*)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+        *)
+            URL="$1"
+            shift
+            ;;
+    esac
+done
+
+if [ -z "$URL" ]; then
+    echo "Usage: run_browser <url> [--firefox|--chromium|--safari] [--timeout <seconds>] [--exec <command>]"
+    exit 1
+fi
+
+# Extract port from URL for server readiness check
+PORT=$(echo "$URL" | sed -n 's/.*:\([0-9]*\).*/\1/p')
+
+cleanup() {
+    # Kill the node/browser process if running
+    if [ -n "$BROWSER_PID" ]; then
+        kill $BROWSER_PID 2>/dev/null || true
+        pkill -9 -P $BROWSER_PID 2>/dev/null || true
+    fi
+    # Kill the server if running
+    if [ -n "$SERVER_PID" ]; then
+        kill $SERVER_PID 2>/dev/null || true
+        pkill -9 -P $SERVER_PID 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT INT TERM
+
+# If --exec provided, start the server
+if [ -n "$EXEC_CMD" ]; then
+    # Kill any existing process on the port
+    if [ -n "$PORT" ] && lsof -ti:$PORT > /dev/null 2>&1; then
+        echo "Killing existing process on port $PORT..."
+        lsof -ti:$PORT | xargs kill -9 2>/dev/null || true
+        sleep 1
+    fi
+
+    echo "Starting: $EXEC_CMD"
+    $EXEC_CMD > /dev/null 2>&1 &
+    SERVER_PID=$!
+
+    # Wait for server to be ready
+    echo "Waiting for server on port $PORT..."
+    for i in $(seq 1 15); do
+        if curl -s "http://127.0.0.1:$PORT" > /dev/null 2>&1; then
+            echo "Server is ready!"
+            break
+        fi
+        if [ $i -eq 15 ]; then
+            echo "Timeout waiting for server to start"
+            exit 1
+        fi
+        sleep 1
+    done
+fi
+
+echo "Opening $URL in $BROWSER (timeout: ${TIMEOUT_SEC}s)..."
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+TIMEOUT_MS=$((TIMEOUT_SEC * 1000))
+BASH_TIMEOUT=$((TIMEOUT_SEC + 5))
+TARGET_URL="$URL" BROWSER="$BROWSER" TIMEOUT_MS="$TIMEOUT_MS" timeout -s KILL -k 5 $BASH_TIMEOUT node "$SKILL_DIR/run.js" "$SCRIPT_DIR/browser-console-capture.js" &
+BROWSER_PID=$!
+wait $BROWSER_PID

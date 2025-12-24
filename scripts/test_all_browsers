@@ -1,0 +1,82 @@
+#!/bin/bash
+set -e
+cd "$(dirname "$0")/.."
+
+TIMEOUT_SEC=${TIMEOUT_SEC:-5}
+PORT=1334
+URL="http://127.0.0.1:$PORT"
+BROWSERS="firefox chromium webkit"
+
+EXPECTED_MESSAGES=(
+    "debug: log_party"
+    "info: log_party"
+    "log: log_party"
+    "warn: log_party"
+    "error: log_party"
+)
+
+# Kill any existing process on the port
+if lsof -ti:$PORT > /dev/null 2>&1; then
+    echo "Killing existing process on port $PORT..."
+    lsof -ti:$PORT | xargs kill -9 2>/dev/null || true
+    sleep 1
+fi
+
+# Start the server
+echo "Starting server..."
+./scripts/example_log > /dev/null 2>&1 &
+SERVER_PID=$!
+
+cleanup() {
+    kill $SERVER_PID 2>/dev/null || true
+    pkill -9 -P $SERVER_PID 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+# Wait for server
+for i in $(seq 1 15); do
+    if curl -s "$URL" > /dev/null 2>&1; then
+        echo "Server is ready!"
+        break
+    fi
+    if [ $i -eq 15 ]; then
+        echo "Timeout waiting for server"
+        exit 1
+    fi
+    sleep 1
+done
+
+FAILED=0
+PASSED=0
+
+for BROWSER in $BROWSERS; do
+    echo ""
+    echo "=== Testing $BROWSER ==="
+
+    OUTPUT=$(./scripts/run_browser "$URL" --$BROWSER --timeout $TIMEOUT_SEC 2>&1) || true
+
+    MISSING=0
+    for MSG in "${EXPECTED_MESSAGES[@]}"; do
+        if ! echo "$OUTPUT" | grep -q "$MSG"; then
+            echo "  MISSING: $MSG"
+            MISSING=1
+        fi
+    done
+
+    if [ $MISSING -eq 0 ]; then
+        echo "  PASS: All expected messages found"
+        PASSED=$((PASSED + 1))
+    else
+        echo "  FAIL: Some messages missing"
+        FAILED=$((FAILED + 1))
+    fi
+done
+
+echo ""
+echo "=== Results ==="
+echo "Passed: $PASSED"
+echo "Failed: $FAILED"
+
+if [ $FAILED -gt 0 ]; then
+    exit 1
+fi

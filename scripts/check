@@ -1,0 +1,36 @@
+#!/bin/bash
+set -e
+cd "$(dirname "$0")/.."
+
+echo "=== Running example_log and checking output ==="
+
+OUTPUT=$(./scripts/example_log 2>&1)
+
+# Check for expected log messages
+EXPECTED_LOGS=(
+    "debug: log_party"
+    "info: log_party"
+    "log: log_party"
+    "warn: log_party"
+    "error: log_party"
+)
+
+FAILED=0
+for log in "${EXPECTED_LOGS[@]}"; do
+    if echo "$OUTPUT" | grep -q "$log"; then
+        echo "✓ Found: $log"
+    else
+        echo "✗ Missing: $log"
+        FAILED=1
+    fi
+done
+
+if [ $FAILED -eq 1 ]; then
+    echo ""
+    echo "=== Full output ==="
+    echo "$OUTPUT"
+    exit 1
+fi
+
+echo ""
+echo "All log checks passed!"

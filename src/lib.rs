@@ -13,12 +13,12 @@ pub fn do_log() {
     console::warn_1(&"warn: log_party".into());
     console::error_1(&"error: log_party".into());
 }
-//
-// /// Panics
-// #[wasm_bindgen]
-// pub fn do_panic() {
-//     panic!("log_party panic!");
-// }
+
+/// Panics
+#[wasm_bindgen]
+pub fn do_panic() {
+    panic!("log_party panic!");
+}
 //
 // /// Spawns a thread and logs from within it
 // #[wasm_bindgen]

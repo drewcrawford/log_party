@@ -59,48 +59,48 @@ THREAD_EXPECTED_MESSAGES=(
     "error: log_party (from thread)"
 )
 
-#for BROWSER in $BROWSERS; do
-#    # Map browser name for display
-#    case $BROWSER in
-#        webkit) DISPLAY_NAME="safari" ;;
-#        *) DISPLAY_NAME="$BROWSER" ;;
-#    esac
-#
-#    OUTPUT=$(./scripts/run_browser "$URL" --$BROWSER --timeout $TIMEOUT_SEC --omit-stdio-logs --exec "./scripts/example_thread_log" 2>&1) || true
-#
-#    MISSING=0
-#    for MSG in "${THREAD_EXPECTED_MESSAGES[@]}"; do
-#        if ! echo "$OUTPUT" | grep -q "$MSG"; then
-#            MISSING=1
-#            break
-#        fi
-#    done
-#
-#    if [ $MISSING -eq 0 ]; then
-#        echo "$DISPLAY_NAME... web_sys::console::* from thread WORKS when run via run_browser"
-#    else
-#        echo "$DISPLAY_NAME... web_sys::console::* from thread does NOT work when run via run_browser. Do NOT do print-style debugging in this configuration."
-#        FAILED=$((FAILED + 1))
-#    fi
-#done
-#
-## CLI test for thread_log
-#OUTPUT=$(./scripts/run_browser "$URL" --firefox --timeout $TIMEOUT_SEC --exec "./scripts/example_thread_log" --omit-browser-logs 2>&1) || true
-#
-#MISSING=0
-#for MSG in "${THREAD_EXPECTED_MESSAGES[@]}"; do
-#    if ! echo "$OUTPUT" | grep -q "$MSG"; then
-#        MISSING=1
-#        break
-#    fi
-#done
-#
-#if [ $MISSING -eq 0 ]; then
-#    echo "CLI... web_sys::console::* from thread WORKS when running from terminal"
-#else
-#    echo "CLI... web_sys::console::* from thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
-#    FAILED=$((FAILED + 1))
-#fi
+for BROWSER in $BROWSERS; do
+    # Map browser name for display
+    case $BROWSER in
+        webkit) DISPLAY_NAME="safari" ;;
+        *) DISPLAY_NAME="$BROWSER" ;;
+    esac
+
+    OUTPUT=$(./scripts/run_browser "$URL" --$BROWSER --timeout $TIMEOUT_SEC --omit-stdio-logs --exec "./scripts/example_thread_log" 2>&1) || true
+
+    MISSING=0
+    for MSG in "${THREAD_EXPECTED_MESSAGES[@]}"; do
+        if ! echo "$OUTPUT" | grep -q "$MSG"; then
+            MISSING=1
+            break
+        fi
+    done
+
+    if [ $MISSING -eq 0 ]; then
+        echo "$DISPLAY_NAME... web_sys::console::* from thread WORKS when run via run_browser"
+    else
+        echo "$DISPLAY_NAME... web_sys::console::* from thread does NOT work when run via run_browser. Do NOT do print-style debugging in this configuration."
+        FAILED=$((FAILED + 1))
+    fi
+done
+
+# CLI test for thread_log
+OUTPUT=$(./scripts/run_browser "$URL" --firefox --timeout $TIMEOUT_SEC --exec "./scripts/example_thread_log" --omit-browser-logs 2>&1) || true
+
+MISSING=0
+for MSG in "${THREAD_EXPECTED_MESSAGES[@]}"; do
+    if ! echo "$OUTPUT" | grep -q "$MSG"; then
+        MISSING=1
+        break
+    fi
+done
+
+if [ $MISSING -eq 0 ]; then
+    echo "CLI... web_sys::console::* from thread WORKS when running from terminal"
+else
+    echo "CLI... web_sys::console::* from thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
+    FAILED=$((FAILED + 1))
+fi
 
 # example_thread_panic tests
 echo ""
@@ -135,6 +135,9 @@ else
     FAILED=$((FAILED + 1))
 fi
 
+echo "  NOTE: Checks for 'unreachable'. Add console_error_panic_hook to get full panic messages:"
+echo "    console_error_panic_hook::set_once();"
+
 # example_thread_panic_hook tests
 echo ""
 echo "example_thread_panic_hook:"
@@ -168,124 +171,122 @@ else
     FAILED=$((FAILED + 1))
 fi
 
-#echo "example_log:"
-#
-#for BROWSER in $BROWSERS; do
-#    # Map browser name for display
-#    case $BROWSER in
-#        webkit) DISPLAY_NAME="safari" ;;
-#        *) DISPLAY_NAME="$BROWSER" ;;
-#    esac
-#
-#    OUTPUT=$(./scripts/run_browser "$URL" --$BROWSER --timeout $TIMEOUT_SEC --omit-stdio-logs 2>&1) || true
-#
-#    MISSING=0
-#    for MSG in "${EXPECTED_MESSAGES[@]}"; do
-#        if ! echo "$OUTPUT" | grep -q "$MSG"; then
-#            MISSING=1
-#            break
-#        fi
-#    done
-#
-#    if [ $MISSING -eq 0 ]; then
-#        echo "$DISPLAY_NAME... web_sys::console::* on the main thread WORKS when run via run_browser"
-#    else
-#        echo "$DISPLAY_NAME... web_sys::console::* on the main thread does NOT work when run via run_browser. Do NOT do print-style debugging in this configuration."
-#        FAILED=$((FAILED + 1))
-#    fi
-#done
-#
-## Fourth case: Check if wasm-server-runner forwards console output to CLI
-#cleanup
-#sleep 1
-#
-#OUTPUT=$(./scripts/run_browser "$URL" --firefox --timeout $TIMEOUT_SEC --exec "./scripts/example_log" --omit-browser-logs 2>&1) || true
-#
-#MISSING=0
-#for MSG in "${EXPECTED_MESSAGES[@]}"; do
-#    if ! echo "$OUTPUT" | grep -q "$MSG"; then
-#        MISSING=1
-#        break
-#    fi
-#done
-#
-#if [ $MISSING -eq 0 ]; then
-#    echo "CLI... web_sys::console::* on the main thread WORKS when running from terminal"
-#else
-#    echo "CLI... web_sys::console::* on the main thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
-#    FAILED=$((FAILED + 1))
-#fi
+echo "example_log:"
 
-## example_panic tests
-#echo ""
-#echo "example_panic:"
-#
-#EXPECTED_PANIC="unreachable"
-#
-#for BROWSER in $BROWSERS; do
-#    # Map browser name for display
-#    case $BROWSER in
-#        webkit) DISPLAY_NAME="safari" ;;
-#        *) DISPLAY_NAME="$BROWSER" ;;
-#    esac
-#
-#    OUTPUT=$(./scripts/run_browser "$URL" --$BROWSER --timeout $TIMEOUT_SEC --omit-stdio-logs --exec "./scripts/example_panic" 2>&1) || true
-#
-#    if echo "$OUTPUT" | grep -iq "$EXPECTED_PANIC"; then
-#        echo "$DISPLAY_NAME... panic on the main thread WORKS when run via run_browser"
-#    else
-#        echo "$DISPLAY_NAME... panic on the main thread does NOT work when run via run_browser. Do NOT do print-style debugging in this configuration."
-#        FAILED=$((FAILED + 1))
-#    fi
-#done
-#
-## CLI test for panic
-#OUTPUT=$(./scripts/run_browser "$URL" --firefox --timeout $TIMEOUT_SEC --exec "./scripts/example_panic" --omit-browser-logs 2>&1) || true
-#
-#if echo "$OUTPUT" | grep -iq "$EXPECTED_PANIC"; then
-#    echo "CLI... panic on the main thread WORKS when running from terminal"
-#else
-#    echo "CLI... panic on the main thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
-#    FAILED=$((FAILED + 1))
-#fi
-#
-## example_panic_hook tests
-#echo ""
-#echo "example_panic_hook:"
-#
-#EXPECTED_PANIC_HOOK="log_party panic!"
-#
-#for BROWSER in $BROWSERS; do
-#    # Map browser name for display
-#    case $BROWSER in
-#        webkit) DISPLAY_NAME="safari" ;;
-#        *) DISPLAY_NAME="$BROWSER" ;;
-#    esac
-#
-#    OUTPUT=$(./scripts/run_browser "$URL" --$BROWSER --timeout $TIMEOUT_SEC --omit-stdio-logs --exec "./scripts/example_panic_hook" 2>&1) || true
-#
-#    if echo "$OUTPUT" | grep -q "$EXPECTED_PANIC_HOOK"; then
-#        echo "$DISPLAY_NAME... panic with hook on the main thread WORKS when run via run_browser"
-#    else
-#        echo "$DISPLAY_NAME... panic with hook on the main thread does NOT work when run via run_browser. Do NOT do print-style debugging in this configuration."
-#        FAILED=$((FAILED + 1))
-#    fi
-#done
-#
-## CLI test for panic_hook
-#OUTPUT=$(./scripts/run_browser "$URL" --firefox --timeout $TIMEOUT_SEC --exec "./scripts/example_panic_hook" --omit-browser-logs 2>&1) || true
-#
-#if echo "$OUTPUT" | grep -q "$EXPECTED_PANIC_HOOK"; then
-#    echo "CLI... panic with hook on the main thread WORKS when running from terminal"
-#else
-#    echo "CLI... panic with hook on the main thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
-#    FAILED=$((FAILED + 1))
-#fi
-#
-#echo ""
-#echo "NOTE: If you see 'unreachable' errors, add console_error_panic_hook to get full panic messages:"
-#echo "  console_error_panic_hook::set_once();"
-#
-#if [ $FAILED -gt 0 ]; then
-#    exit 1
-#fi
+for BROWSER in $BROWSERS; do
+    # Map browser name for display
+    case $BROWSER in
+        webkit) DISPLAY_NAME="safari" ;;
+        *) DISPLAY_NAME="$BROWSER" ;;
+    esac
+
+    OUTPUT=$(./scripts/run_browser "$URL" --$BROWSER --timeout $TIMEOUT_SEC --omit-stdio-logs --exec "./scripts/example_log" 2>&1) || true
+
+    MISSING=0
+    for MSG in "${EXPECTED_MESSAGES[@]}"; do
+        if ! echo "$OUTPUT" | grep -q "$MSG"; then
+            MISSING=1
+            break
+        fi
+    done
+
+    if [ $MISSING -eq 0 ]; then
+        echo "$DISPLAY_NAME... web_sys::console::* on the main thread WORKS when run via run_browser"
+    else
+        echo "$DISPLAY_NAME... web_sys::console::* on the main thread does NOT work when run via run_browser. Do NOT do print-style debugging in this configuration."
+        FAILED=$((FAILED + 1))
+    fi
+done
+
+# Fourth case: Check if wasm-server-runner forwards console output to CLI
+cleanup
+sleep 1
+
+OUTPUT=$(./scripts/run_browser "$URL" --firefox --timeout $TIMEOUT_SEC --exec "./scripts/example_log" --omit-browser-logs 2>&1) || true
+
+MISSING=0
+for MSG in "${EXPECTED_MESSAGES[@]}"; do
+    if ! echo "$OUTPUT" | grep -q "$MSG"; then
+        MISSING=1
+        break
+    fi
+done
+
+if [ $MISSING -eq 0 ]; then
+    echo "CLI... web_sys::console::* on the main thread WORKS when running from terminal"
+else
+    echo "CLI... web_sys::console::* on the main thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
+    FAILED=$((FAILED + 1))
+fi
+
+# example_panic tests
+echo ""
+echo "example_panic:"
+
+EXPECTED_PANIC="unreachable"
+
+for BROWSER in $BROWSERS; do
+    # Map browser name for display
+    case $BROWSER in
+        webkit) DISPLAY_NAME="safari" ;;
+        *) DISPLAY_NAME="$BROWSER" ;;
+    esac
+
+    OUTPUT=$(./scripts/run_browser "$URL" --$BROWSER --timeout $TIMEOUT_SEC --omit-stdio-logs --exec "./scripts/example_panic" 2>&1) || true
+
+    if echo "$OUTPUT" | grep -iq "$EXPECTED_PANIC"; then
+        echo "$DISPLAY_NAME... panic on the main thread WORKS when run via run_browser"
+    else
+        echo "$DISPLAY_NAME... panic on the main thread does NOT work when run via run_browser. Do NOT do print-style debugging in this configuration."
+        FAILED=$((FAILED + 1))
+    fi
+done
+
+# CLI test for panic
+OUTPUT=$(./scripts/run_browser "$URL" --firefox --timeout $TIMEOUT_SEC --exec "./scripts/example_panic" --omit-browser-logs 2>&1) || true
+
+if echo "$OUTPUT" | grep -iq "$EXPECTED_PANIC"; then
+    echo "CLI... panic on the main thread WORKS when running from terminal"
+else
+    echo "CLI... panic on the main thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
+    FAILED=$((FAILED + 1))
+fi
+
+# example_panic_hook tests
+echo ""
+echo "example_panic_hook:"
+
+EXPECTED_PANIC_HOOK="log_party panic!"
+
+for BROWSER in $BROWSERS; do
+    # Map browser name for display
+    case $BROWSER in
+        webkit) DISPLAY_NAME="safari" ;;
+        *) DISPLAY_NAME="$BROWSER" ;;
+    esac
+
+    OUTPUT=$(./scripts/run_browser "$URL" --$BROWSER --timeout $TIMEOUT_SEC --omit-stdio-logs --exec "./scripts/example_panic_hook" 2>&1) || true
+
+    if echo "$OUTPUT" | grep -q "$EXPECTED_PANIC_HOOK"; then
+        echo "$DISPLAY_NAME... panic with hook on the main thread WORKS when run via run_browser"
+    else
+        echo "$DISPLAY_NAME... panic with hook on the main thread does NOT work when run via run_browser. Do NOT do print-style debugging in this configuration."
+        FAILED=$((FAILED + 1))
+    fi
+done
+
+# CLI test for panic_hook
+OUTPUT=$(./scripts/run_browser "$URL" --firefox --timeout $TIMEOUT_SEC --exec "./scripts/example_panic_hook" --omit-browser-logs 2>&1) || true
+
+if echo "$OUTPUT" | grep -q "$EXPECTED_PANIC_HOOK"; then
+    echo "CLI... panic with hook on the main thread WORKS when running from terminal"
+else
+    echo "CLI... panic with hook on the main thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
+    FAILED=$((FAILED + 1))
+fi
+
+echo ""
+
+if [ $FAILED -gt 0 ]; then
+    exit 1
+fi

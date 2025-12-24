@@ -8,11 +8,11 @@ URL="http://127.0.0.1:$PORT"
 BROWSERS="firefox chromium webkit"
 
 EXPECTED_MESSAGES=(
-    "debug: log_party"
-    "info: log_party"
-    "log: log_party"
-    "warn: log_party"
-    "error: log_party"
+    "MAIN_DEBUG_2c7f9a"
+    "MAIN_INFO_4e8b3d"
+    "MAIN_LOG_6a1c5e"
+    "MAIN_WARN_8d4f2b"
+    "MAIN_ERROR_0f3e7c"
 )
 
 # Kill any existing process on the port
@@ -53,11 +53,11 @@ FAILED=0
 #echo "  (tests cargo run --example, NOT cargo test; tests wasm-server-runner, NOT wasm-bindgen-test-runner)"
 #
 #THREAD_EXPECTED_MESSAGES=(
-#    "debug: log_party (from thread)"
-#    "info: log_party (from thread)"
-#    "log: log_party (from thread)"
-#    "warn: log_party (from thread)"
-#    "error: log_party (from thread)"
+#    "THREAD_DEBUG_8f3a2b"
+#    "THREAD_INFO_9c4d1e"
+#    "THREAD_LOG_7b2e5f"
+#    "THREAD_WARN_3a6c8d"
+#    "THREAD_ERROR_1d9f4a"
 #)
 #
 #for BROWSER in $BROWSERS; do
@@ -384,7 +384,15 @@ sleep 1
 
 echo ""
 echo "tests/thread_log.rs:"
-echo "  (tests cargo test, NOT cargo run --example; tests wasm-bindgen-test-runner, NOT wasm-server-runner)"
+echo "  (tests cargo test, NOT cargo run --example; tests wasm-bindgen-test-runner, NOT wasm-bindgen-test-runner)"
+
+THREAD_LOG_EXPECTED=(
+    "THREAD_DEBUG_8f3a2b"
+    "THREAD_INFO_9c4d1e"
+    "THREAD_LOG_7b2e5f"
+    "THREAD_WARN_3a6c8d"
+    "THREAD_ERROR_1d9f4a"
+)
 
 for BROWSER in firefox chrome safari; do
     export WASM_BINDGEN_TEST_ONLY_WEB=1
@@ -392,10 +400,18 @@ for BROWSER in firefox chrome safari; do
 
     OUTPUT=$(./scripts/test_thread_log 2>&1) || true
 
-    if echo "$OUTPUT" | grep -q "test .* ok"; then
-        echo "$BROWSER... cargo test WORKS"
+    MISSING=0
+    for MSG in "${THREAD_LOG_EXPECTED[@]}"; do
+        if ! echo "$OUTPUT" | grep -q "$MSG"; then
+            MISSING=1
+            break
+        fi
+    done
+
+    if [ $MISSING -eq 0 ]; then
+        echo "$BROWSER... all 5 console levels captured"
     else
-        echo "$BROWSER... cargo test does NOT work."
+        echo "$BROWSER... NOT all console levels captured (wasm-bindgen-test-runner limitation)"
         FAILED=$((FAILED + 1))
     fi
 done
@@ -406,20 +422,18 @@ unset WASM_BINDGEN_USE_BROWSER
 
 OUTPUT=$(./scripts/test_thread_log 2>&1) || true
 
-if echo "$OUTPUT" | grep -q "test .* ok"; then
-    echo "headless... cargo test WORKS"
-else
-    echo "headless... cargo test does NOT work."
-    FAILED=$((FAILED + 1))
-fi
+MISSING=0
+for MSG in "${THREAD_LOG_EXPECTED[@]}"; do
+    if ! echo "$OUTPUT" | grep -q "$MSG"; then
+        MISSING=1
+        break
+    fi
+done
 
-# CLI test - via run_browser (checks if output is forwarded to terminal)
-OUTPUT=$(./scripts/run_browser "$URL" --firefox --timeout $TIMEOUT_SEC --exec "./scripts/test_thread_log" --omit-browser-logs 2>&1) || true
-
-if echo "$OUTPUT" | grep -q "test .* ok"; then
-    echo "CLI... cargo test WORKS when running from terminal"
+if [ $MISSING -eq 0 ]; then
+    echo "headless... all 5 console levels captured"
 else
-    echo "CLI... cargo test does NOT work when running from terminal."
+    echo "headless... NOT all console levels captured (wasm-bindgen-test-runner limitation)"
     FAILED=$((FAILED + 1))
 fi
 

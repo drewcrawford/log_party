@@ -47,64 +47,55 @@ for i in $(seq 1 15); do
 done
 
 FAILED=0
-PASSED=0
+
+echo ""
+echo "example_log:"
 
 for BROWSER in $BROWSERS; do
-    echo ""
-    echo "=== Testing $BROWSER ==="
+    # Map browser name for display
+    case $BROWSER in
+        webkit) DISPLAY_NAME="safari" ;;
+        *) DISPLAY_NAME="$BROWSER" ;;
+    esac
 
     OUTPUT=$(./scripts/run_browser "$URL" --$BROWSER --timeout $TIMEOUT_SEC --omit-stdio-logs 2>&1) || true
 
     MISSING=0
     for MSG in "${EXPECTED_MESSAGES[@]}"; do
         if ! echo "$OUTPUT" | grep -q "$MSG"; then
-            echo "  MISSING: $MSG"
             MISSING=1
+            break
         fi
     done
 
     if [ $MISSING -eq 0 ]; then
-        echo "  PASS: All expected messages found"
-        PASSED=$((PASSED + 1))
+        echo "$DISPLAY_NAME... web_sys::console::* on the main thread WORKS when run via run_browser"
     else
-        echo "  FAIL: Some messages missing"
+        echo "$DISPLAY_NAME... web_sys::console::* on the main thread does NOT work when run via run_browser. Do NOT do print-style debugging in this configuration."
         FAILED=$((FAILED + 1))
     fi
 done
 
-# Fourth case: Check if wasm-server-runner forwards console output
-echo ""
-echo "=== Testing wasm-server-runner output (firefox) ==="
-
-# Kill existing server first
+# Fourth case: Check if wasm-server-runner forwards console output to CLI
 cleanup
 sleep 1
 
 OUTPUT=$(./scripts/run_browser "$URL" --firefox --timeout $TIMEOUT_SEC --exec "./scripts/example_log" --omit-browser-logs 2>&1) || true
 
-# Check for expected messages in server output
 MISSING=0
 for MSG in "${EXPECTED_MESSAGES[@]}"; do
     if ! echo "$OUTPUT" | grep -q "$MSG"; then
-        echo "  MISSING: $MSG"
         MISSING=1
+        break
     fi
 done
 
 if [ $MISSING -eq 0 ]; then
-    echo "  PASS: All expected messages found in server output"
-    PASSED=$((PASSED + 1))
+    echo "CLI... web_sys::console::* on the main thread WORKS when running from terminal"
 else
-    echo "  FAIL: Some messages missing from server output"
-    echo "  Output was:"
-    echo "$OUTPUT" | head -50
+    echo "CLI... web_sys::console::* on the main thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
     FAILED=$((FAILED + 1))
 fi
-
-echo ""
-echo "=== Results ==="
-echo "Passed: $PASSED"
-echo "Failed: $FAILED"
 
 if [ $FAILED -gt 0 ]; then
     exit 1

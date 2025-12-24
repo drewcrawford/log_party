@@ -46,3 +46,12 @@ pub fn thread_panic() {
         panic!("log_party panic from thread!");
     });
 }
+
+/// Spawns a thread and panics from within it with console_error_panic_hook enabled
+#[wasm_bindgen]
+pub fn thread_panic_hook() {
+    wasm_safe_thread::spawn(|| {
+        console_error_panic_hook::set_once();
+        panic!("log_party panic from thread!");
+    });
+}

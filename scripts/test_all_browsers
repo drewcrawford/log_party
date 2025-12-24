@@ -125,14 +125,47 @@ for BROWSER in $BROWSERS; do
     fi
 done
 
-# CLI test for thread_panic - note: wasm-server-runner doesn't forward panic details to CLI
+# CLI test for thread_panic
 OUTPUT=$(./scripts/run_browser "$URL" --firefox --timeout $TIMEOUT_SEC --exec "./scripts/example_thread_panic" --omit-browser-logs 2>&1) || true
 
 if echo "$OUTPUT" | grep -iq "$EXPECTED_THREAD_PANIC"; then
     echo "CLI... panic from thread WORKS when running from terminal"
 else
     echo "CLI... panic from thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
-    # Not counted as failure - wasm-server-runner doesn't forward thread panic details
+    FAILED=$((FAILED + 1))
+fi
+
+# example_thread_panic_hook tests
+echo ""
+echo "example_thread_panic_hook:"
+
+EXPECTED_THREAD_PANIC_HOOK="log_party panic from thread!"
+
+for BROWSER in $BROWSERS; do
+    # Map browser name for display
+    case $BROWSER in
+        webkit) DISPLAY_NAME="safari" ;;
+        *) DISPLAY_NAME="$BROWSER" ;;
+    esac
+
+    OUTPUT=$(./scripts/run_browser "$URL" --$BROWSER --timeout $TIMEOUT_SEC --omit-stdio-logs --exec "./scripts/example_thread_panic_hook" 2>&1) || true
+
+    if echo "$OUTPUT" | grep -q "$EXPECTED_THREAD_PANIC_HOOK"; then
+        echo "$DISPLAY_NAME... panic with hook from thread WORKS when run via run_browser"
+    else
+        echo "$DISPLAY_NAME... panic with hook from thread does NOT work when run via run_browser. Do NOT do print-style debugging in this configuration."
+        FAILED=$((FAILED + 1))
+    fi
+done
+
+# CLI test for thread_panic_hook
+OUTPUT=$(./scripts/run_browser "$URL" --firefox --timeout $TIMEOUT_SEC --exec "./scripts/example_thread_panic_hook" --omit-browser-logs 2>&1) || true
+
+if echo "$OUTPUT" | grep -q "$EXPECTED_THREAD_PANIC_HOOK"; then
+    echo "CLI... panic with hook from thread WORKS when running from terminal"
+else
+    echo "CLI... panic with hook from thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
+    FAILED=$((FAILED + 1))
 fi
 
 #echo "example_log:"

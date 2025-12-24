@@ -19,6 +19,13 @@ pub fn do_log() {
 pub fn do_panic() {
     panic!("log_party panic!");
 }
+
+/// Panics with console_error_panic_hook enabled
+#[wasm_bindgen]
+pub fn do_panic_hook() {
+    console_error_panic_hook::set_once();
+    panic!("log_party panic!");
+}
 //
 // /// Spawns a thread and logs from within it
 // #[wasm_bindgen]

@@ -2,6 +2,35 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# Optional test filter - run only tests matching this pattern
+# Usage: ./scripts/test_all_browsers [filter]
+# Available tests:
+#   example_thread_log, example_thread_panic, example_thread_panic_hook
+#   example_log, example_panic, example_panic_hook
+#   tests/log, tests/panic, tests/thread_log, tests/thread_panic
+TEST_FILTER="${1:-}"
+
+should_run_test() {
+    local test_name="$1"
+    if [ -z "$TEST_FILTER" ]; then
+        return 0  # No filter, run all tests
+    fi
+    if [[ "$test_name" == *"$TEST_FILTER"* ]]; then
+        return 0  # Test name contains filter
+    fi
+    return 1  # Skip this test
+}
+
+needs_server() {
+    # Server is needed for example_* tests
+    should_run_test "example_thread_log" || \
+    should_run_test "example_thread_panic" || \
+    should_run_test "example_thread_panic_hook" || \
+    should_run_test "example_log" || \
+    should_run_test "example_panic" || \
+    should_run_test "example_panic_hook"
+}
+
 TIMEOUT_SEC=${TIMEOUT_SEC:-5}
 PORT=1334
 URL="http://127.0.0.1:$PORT"
@@ -15,39 +44,46 @@ EXPECTED_MESSAGES=(
     "MAIN_ERROR_0f3e7c"
 )
 
-# Kill any existing process on the port
-if lsof -ti:$PORT > /dev/null 2>&1; then
-    echo "Killing existing process on port $PORT..."
-    lsof -ti:$PORT | xargs kill -9 2>/dev/null || true
-    sleep 1
-fi
-
-# Start the server
-echo "Starting server..."
-./scripts/example_log > /dev/null 2>&1 &
-SERVER_PID=$!
+SERVER_PID=""
 
 cleanup() {
-    kill $SERVER_PID 2>/dev/null || true
-    pkill -9 -P $SERVER_PID 2>/dev/null || true
+    if [ -n "$SERVER_PID" ]; then
+        kill $SERVER_PID 2>/dev/null || true
+        pkill -9 -P $SERVER_PID 2>/dev/null || true
+    fi
 }
 trap cleanup EXIT INT TERM
 
-# Wait for server
-for i in $(seq 1 15); do
-    if curl -s "$URL" > /dev/null 2>&1; then
-        echo "Server is ready!"
-        break
+if needs_server; then
+    # Kill any existing process on the port
+    if lsof -ti:$PORT > /dev/null 2>&1; then
+        echo "Killing existing process on port $PORT..."
+        lsof -ti:$PORT | xargs kill -9 2>/dev/null || true
+        sleep 1
     fi
-    if [ $i -eq 15 ]; then
-        echo "Timeout waiting for server"
-        exit 1
-    fi
-    sleep 1
-done
+
+    # Start the server
+    echo "Starting server..."
+    ./scripts/example_log > /dev/null 2>&1 &
+    SERVER_PID=$!
+
+    # Wait for server
+    for i in $(seq 1 15); do
+        if curl -s "$URL" > /dev/null 2>&1; then
+            echo "Server is ready!"
+            break
+        fi
+        if [ $i -eq 15 ]; then
+            echo "Timeout waiting for server"
+            exit 1
+        fi
+        sleep 1
+    done
+fi
 
 FAILED=0
 
+if should_run_test "example_thread_log"; then
 echo ""
 echo "example_thread_log:"
 echo "  (tests cargo run --example, NOT cargo test; tests wasm-server-runner, NOT wasm-bindgen-test-runner)"
@@ -118,7 +154,9 @@ else
     echo "CLI... web_sys::console::* from thread has DUPLICATE logs when running from terminal."
     FAILED=$((FAILED + 1))
 fi
+fi
 
+if should_run_test "example_thread_panic"; then
 # example_thread_panic tests
 echo ""
 echo "example_thread_panic:"
@@ -155,7 +193,9 @@ fi
 
 echo "  NOTE: Checks for 'unreachable'. Add console_error_panic_hook to get full panic messages:"
 echo "    console_error_panic_hook::set_once();"
+fi
 
+if should_run_test "example_thread_panic_hook"; then
 # example_thread_panic_hook tests
 echo ""
 echo "example_thread_panic_hook:"
@@ -189,7 +229,9 @@ else
     echo "CLI... panic with hook from thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
     FAILED=$((FAILED + 1))
 fi
+fi
 
+if should_run_test "example_log"; then
 echo ""
 echo "example_log:"
 echo "  (tests cargo run --example, NOT cargo test; tests wasm-server-runner, NOT wasm-bindgen-test-runner)"
@@ -252,7 +294,9 @@ else
     echo "CLI... web_sys::console::* on the main thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
     FAILED=$((FAILED + 1))
 fi
+fi
 
+if should_run_test "example_panic"; then
 # example_panic tests
 echo ""
 echo "example_panic:"
@@ -286,7 +330,9 @@ else
     echo "CLI... panic on the main thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
     FAILED=$((FAILED + 1))
 fi
+fi
 
+if should_run_test "example_panic_hook"; then
 # example_panic_hook tests
 echo ""
 echo "example_panic_hook:"
@@ -320,12 +366,14 @@ else
     echo "CLI... panic with hook on the main thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
     FAILED=$((FAILED + 1))
 fi
+fi
 
 # Integration tests (cargo test)
 # Clean up the wasm-server-runner before running integration tests
 cleanup
 sleep 1
 
+if should_run_test "tests/log"; then
 echo ""
 echo "tests/log.rs:"
 echo "  (tests cargo test, NOT cargo run --example; tests wasm-bindgen-test-runner, NOT wasm-server-runner)"
@@ -366,9 +414,9 @@ else
     echo "CLI... cargo test does NOT work when running from terminal."
     FAILED=$((FAILED + 1))
 fi
+fi
 
-echo ""
-
+if should_run_test "tests/panic"; then
 echo ""
 echo "tests/panic.rs:"
 echo "  (tests cargo test, NOT cargo run --example; tests wasm-bindgen-test-runner, NOT wasm-server-runner)"
@@ -410,7 +458,9 @@ else
     echo "CLI... cargo test does NOT work when running from terminal."
     FAILED=$((FAILED + 1))
 fi
+fi
 
+if should_run_test "tests/thread_log"; then
 echo ""
 echo "tests/thread_log.rs:"
 echo "  (tests cargo test, NOT cargo run --example; tests wasm-bindgen-test-runner, NOT wasm-bindgen-test-runner)"
@@ -481,7 +531,9 @@ else
     echo "headless... DUPLICATE logs detected (wasm-bindgen-test-runner issue)"
     FAILED=$((FAILED + 1))
 fi
+fi
 
+if should_run_test "tests/thread_panic"; then
 echo ""
 echo "tests/thread_panic.rs:"
 echo "  (tests cargo test, NOT cargo run --example; tests wasm-bindgen-test-runner, NOT wasm-server-runner)"
@@ -513,6 +565,7 @@ if echo "$OUTPUT" | grep -q "$THREAD_PANIC_EXPECTED"; then
 else
     echo "headless... thread panic message NOT captured (wasm-bindgen-test-runner limitation)"
     FAILED=$((FAILED + 1))
+fi
 fi
 
 echo ""

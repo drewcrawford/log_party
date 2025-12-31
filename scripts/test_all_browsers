@@ -70,17 +70,25 @@ for BROWSER in $BROWSERS; do
     OUTPUT=$(./scripts/run_browser "$URL" --$BROWSER --timeout $TIMEOUT_SEC --omit-stdio-logs --exec "./scripts/example_thread_log" 2>&1) || true
 
     MISSING=0
+    DUPLICATE=0
     for MSG in "${THREAD_EXPECTED_MESSAGES[@]}"; do
-        if ! echo "$OUTPUT" | grep -q "$MSG"; then
+        COUNT=$(echo "$OUTPUT" | grep -c "$MSG" || true)
+        if [ "$COUNT" -eq 0 ]; then
             MISSING=1
             break
+        elif [ "$COUNT" -gt 1 ]; then
+            DUPLICATE=1
+            echo "$DISPLAY_NAME... DUPLICATE: found $COUNT occurrences of $MSG"
         fi
     done
 
-    if [ $MISSING -eq 0 ]; then
+    if [ $MISSING -eq 0 ] && [ $DUPLICATE -eq 0 ]; then
         echo "$DISPLAY_NAME... web_sys::console::* from thread WORKS when run via run_browser"
-    else
+    elif [ $MISSING -eq 1 ]; then
         echo "$DISPLAY_NAME... web_sys::console::* from thread does NOT work when run via run_browser. Do NOT do print-style debugging in this configuration."
+        FAILED=$((FAILED + 1))
+    else
+        echo "$DISPLAY_NAME... web_sys::console::* from thread has DUPLICATE logs when run via run_browser."
         FAILED=$((FAILED + 1))
     fi
 done
@@ -89,17 +97,25 @@ done
 OUTPUT=$(./scripts/run_browser "$URL" --firefox --timeout $TIMEOUT_SEC --exec "./scripts/example_thread_log" --omit-browser-logs 2>&1) || true
 
 MISSING=0
+DUPLICATE=0
 for MSG in "${THREAD_EXPECTED_MESSAGES[@]}"; do
-    if ! echo "$OUTPUT" | grep -q "$MSG"; then
+    COUNT=$(echo "$OUTPUT" | grep -c "$MSG" || true)
+    if [ "$COUNT" -eq 0 ]; then
         MISSING=1
         break
+    elif [ "$COUNT" -gt 1 ]; then
+        DUPLICATE=1
+        echo "CLI... DUPLICATE: found $COUNT occurrences of $MSG"
     fi
 done
 
-if [ $MISSING -eq 0 ]; then
+if [ $MISSING -eq 0 ] && [ $DUPLICATE -eq 0 ]; then
     echo "CLI... web_sys::console::* from thread WORKS when running from terminal"
-else
+elif [ $MISSING -eq 1 ]; then
     echo "CLI... web_sys::console::* from thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
+    FAILED=$((FAILED + 1))
+else
+    echo "CLI... web_sys::console::* from thread has DUPLICATE logs when running from terminal."
     FAILED=$((FAILED + 1))
 fi
 
@@ -188,17 +204,25 @@ for BROWSER in $BROWSERS; do
     OUTPUT=$(./scripts/run_browser "$URL" --$BROWSER --timeout $TIMEOUT_SEC --omit-stdio-logs --exec "./scripts/example_log" 2>&1) || true
 
     MISSING=0
+    DUPLICATE=0
     for MSG in "${EXPECTED_MESSAGES[@]}"; do
-        if ! echo "$OUTPUT" | grep -q "$MSG"; then
+        COUNT=$(echo "$OUTPUT" | grep -c "$MSG" || true)
+        if [ "$COUNT" -eq 0 ]; then
             MISSING=1
             break
+        elif [ "$COUNT" -gt 1 ]; then
+            DUPLICATE=1
+            echo "$DISPLAY_NAME... DUPLICATE: found $COUNT occurrences of $MSG"
         fi
     done
 
-    if [ $MISSING -eq 0 ]; then
+    if [ $MISSING -eq 0 ] && [ $DUPLICATE -eq 0 ]; then
         echo "$DISPLAY_NAME... web_sys::console::* on the main thread WORKS when run via run_browser"
-    else
+    elif [ $MISSING -eq 1 ]; then
         echo "$DISPLAY_NAME... web_sys::console::* on the main thread does NOT work when run via run_browser. Do NOT do print-style debugging in this configuration."
+        FAILED=$((FAILED + 1))
+    else
+        echo "$DISPLAY_NAME... web_sys::console::* on the main thread has DUPLICATE logs when run via run_browser."
         FAILED=$((FAILED + 1))
     fi
 done
@@ -210,87 +234,92 @@ sleep 1
 OUTPUT=$(./scripts/run_browser "$URL" --firefox --timeout $TIMEOUT_SEC --exec "./scripts/example_log" --omit-browser-logs 2>&1) || true
 
 MISSING=0
+DUPLICATE=0
 for MSG in "${EXPECTED_MESSAGES[@]}"; do
-    if ! echo "$OUTPUT" | grep -q "$MSG"; then
+    COUNT=$(echo "$OUTPUT" | grep -c "$MSG" || true)
+    if [ "$COUNT" -eq 0 ]; then
         MISSING=1
         break
+    elif [ "$COUNT" -gt 1 ]; then
+        DUPLICATE=1
+        echo "CLI... DUPLICATE: found $COUNT occurrences of $MSG"
     fi
 done
-#
-#if [ $MISSING -eq 0 ]; then
-#    echo "CLI... web_sys::console::* on the main thread WORKS when running from terminal"
-#else
-#    echo "CLI... web_sys::console::* on the main thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
-#    FAILED=$((FAILED + 1))
-#fi
-#
-## example_panic tests
-#echo ""
-#echo "example_panic:"
-#echo "  (tests cargo run --example, NOT cargo test; tests wasm-server-runner, NOT wasm-bindgen-test-runner)"
-#
-#EXPECTED_PANIC="unreachable"
-#
-#for BROWSER in $BROWSERS; do
-#    # Map browser name for display
-#    case $BROWSER in
-#        webkit) DISPLAY_NAME="safari" ;;
-#        *) DISPLAY_NAME="$BROWSER" ;;
-#    esac
-#
-#    OUTPUT=$(./scripts/run_browser "$URL" --$BROWSER --timeout $TIMEOUT_SEC --omit-stdio-logs --exec "./scripts/example_panic" 2>&1) || true
-#
-#    if echo "$OUTPUT" | grep -iq "$EXPECTED_PANIC"; then
-#        echo "$DISPLAY_NAME... panic on the main thread WORKS when run via run_browser"
-#    else
-#        echo "$DISPLAY_NAME... panic on the main thread does NOT work when run via run_browser. Do NOT do print-style debugging in this configuration."
-#        FAILED=$((FAILED + 1))
-#    fi
-#done
-#
-## CLI test for panic
-#OUTPUT=$(./scripts/run_browser "$URL" --firefox --timeout $TIMEOUT_SEC --exec "./scripts/example_panic" --omit-browser-logs 2>&1) || true
-#
-#if echo "$OUTPUT" | grep -iq "$EXPECTED_PANIC"; then
-#    echo "CLI... panic on the main thread WORKS when running from terminal"
-#else
-#    echo "CLI... panic on the main thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
-#    FAILED=$((FAILED + 1))
-#fi
-#
-## example_panic_hook tests
-#echo ""
-#echo "example_panic_hook:"
-#echo "  (tests cargo run --example, NOT cargo test; tests wasm-server-runner, NOT wasm-bindgen-test-runner)"
-#
-#EXPECTED_PANIC_HOOK="log_party panic!"
-#
-#for BROWSER in $BROWSERS; do
-#    # Map browser name for display
-#    case $BROWSER in
-#        webkit) DISPLAY_NAME="safari" ;;
-#        *) DISPLAY_NAME="$BROWSER" ;;
-#    esac
-#
-#    OUTPUT=$(./scripts/run_browser "$URL" --$BROWSER --timeout $TIMEOUT_SEC --omit-stdio-logs --exec "./scripts/example_panic_hook" 2>&1) || true
-#
-#    if echo "$OUTPUT" | grep -q "$EXPECTED_PANIC_HOOK"; then
-#        echo "$DISPLAY_NAME... panic with hook on the main thread WORKS when run via run_browser"
-#    else
-#        echo "$DISPLAY_NAME... panic with hook on the main thread does NOT work when run via run_browser. Do NOT do print-style debugging in this configuration."
-#        FAILED=$((FAILED + 1))
-#    fi
-#done
-#
-## CLI test for panic_hook
-#OUTPUT=$(./scripts/run_browser "$URL" --firefox --timeout $TIMEOUT_SEC --exec "./scripts/example_panic_hook" --omit-browser-logs 2>&1) || true
-#
-#if echo "$OUTPUT" | grep -q "$EXPECTED_PANIC_HOOK"; then
-#    echo "CLI... panic with hook on the main thread WORKS when running from terminal"
-#else
-#    echo "CLI... panic with hook on the main thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
-#    FAILED=$((FAILED + 1))
-#fi
+
+if [ $MISSING -eq 0 ]; then
+    echo "CLI... web_sys::console::* on the main thread WORKS when running from terminal"
+else
+    echo "CLI... web_sys::console::* on the main thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
+    FAILED=$((FAILED + 1))
+fi
+
+# example_panic tests
+echo ""
+echo "example_panic:"
+echo "  (tests cargo run --example, NOT cargo test; tests wasm-server-runner, NOT wasm-bindgen-test-runner)"
+
+EXPECTED_PANIC="unreachable"
+
+for BROWSER in $BROWSERS; do
+    # Map browser name for display
+    case $BROWSER in
+        webkit) DISPLAY_NAME="safari" ;;
+        *) DISPLAY_NAME="$BROWSER" ;;
+    esac
+
+    OUTPUT=$(./scripts/run_browser "$URL" --$BROWSER --timeout $TIMEOUT_SEC --omit-stdio-logs --exec "./scripts/example_panic" 2>&1) || true
+
+    if echo "$OUTPUT" | grep -iq "$EXPECTED_PANIC"; then
+        echo "$DISPLAY_NAME... panic on the main thread WORKS when run via run_browser"
+    else
+        echo "$DISPLAY_NAME... panic on the main thread does NOT work when run via run_browser. Do NOT do print-style debugging in this configuration."
+        FAILED=$((FAILED + 1))
+    fi
+done
+
+# CLI test for panic
+OUTPUT=$(./scripts/run_browser "$URL" --firefox --timeout $TIMEOUT_SEC --exec "./scripts/example_panic" --omit-browser-logs 2>&1) || true
+
+if echo "$OUTPUT" | grep -iq "$EXPECTED_PANIC"; then
+    echo "CLI... panic on the main thread WORKS when running from terminal"
+else
+    echo "CLI... panic on the main thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
+    FAILED=$((FAILED + 1))
+fi
+
+# example_panic_hook tests
+echo ""
+echo "example_panic_hook:"
+echo "  (tests cargo run --example, NOT cargo test; tests wasm-server-runner, NOT wasm-bindgen-test-runner)"
+
+EXPECTED_PANIC_HOOK="log_party panic!"
+
+for BROWSER in $BROWSERS; do
+    # Map browser name for display
+    case $BROWSER in
+        webkit) DISPLAY_NAME="safari" ;;
+        *) DISPLAY_NAME="$BROWSER" ;;
+    esac
+
+    OUTPUT=$(./scripts/run_browser "$URL" --$BROWSER --timeout $TIMEOUT_SEC --omit-stdio-logs --exec "./scripts/example_panic_hook" 2>&1) || true
+
+    if echo "$OUTPUT" | grep -q "$EXPECTED_PANIC_HOOK"; then
+        echo "$DISPLAY_NAME... panic with hook on the main thread WORKS when run via run_browser"
+    else
+        echo "$DISPLAY_NAME... panic with hook on the main thread does NOT work when run via run_browser. Do NOT do print-style debugging in this configuration."
+        FAILED=$((FAILED + 1))
+    fi
+done
+
+# CLI test for panic_hook
+OUTPUT=$(./scripts/run_browser "$URL" --firefox --timeout $TIMEOUT_SEC --exec "./scripts/example_panic_hook" --omit-browser-logs 2>&1) || true
+
+if echo "$OUTPUT" | grep -q "$EXPECTED_PANIC_HOOK"; then
+    echo "CLI... panic with hook on the main thread WORKS when running from terminal"
+else
+    echo "CLI... panic with hook on the main thread does NOT work when running from terminal. Do NOT do print-style debugging in this configuration."
+    FAILED=$((FAILED + 1))
+fi
 
 # Integration tests (cargo test)
 # Clean up the wasm-server-runner before running integration tests
@@ -398,20 +427,28 @@ for BROWSER in firefox chrome safari; do
     export WASM_BINDGEN_TEST_ONLY_WEB=1
     export WASM_BINDGEN_USE_BROWSER=$BROWSER
 
-    OUTPUT=$(./scripts/test_thread_log 2>&1) || true
+    OUTPUT=$(./scripts/test_thread_log -- --nocapture 2>&1) || true
 
     MISSING=0
+    DUPLICATE=0
     for MSG in "${THREAD_LOG_EXPECTED[@]}"; do
-        if ! echo "$OUTPUT" | grep -q "$MSG"; then
+        COUNT=$(echo "$OUTPUT" | grep -c "$MSG" || true)
+        if [ "$COUNT" -eq 0 ]; then
             MISSING=1
             break
+        elif [ "$COUNT" -gt 1 ]; then
+            DUPLICATE=1
+            echo "$BROWSER... DUPLICATE: found $COUNT occurrences of $MSG"
         fi
     done
 
-    if [ $MISSING -eq 0 ]; then
+    if [ $MISSING -eq 0 ] && [ $DUPLICATE -eq 0 ]; then
         echo "$BROWSER... all 5 console levels captured"
-    else
+    elif [ $MISSING -eq 1 ]; then
         echo "$BROWSER... NOT all console levels captured (wasm-bindgen-test-runner limitation)"
+        FAILED=$((FAILED + 1))
+    else
+        echo "$BROWSER... DUPLICATE logs detected (wasm-bindgen-test-runner issue)"
         FAILED=$((FAILED + 1))
     fi
 done
@@ -420,20 +457,28 @@ done
 unset WASM_BINDGEN_TEST_ONLY_WEB
 unset WASM_BINDGEN_USE_BROWSER
 
-OUTPUT=$(./scripts/test_thread_log 2>&1) || true
+OUTPUT=$(./scripts/test_thread_log -- --nocapture 2>&1) || true
 
 MISSING=0
+DUPLICATE=0
 for MSG in "${THREAD_LOG_EXPECTED[@]}"; do
-    if ! echo "$OUTPUT" | grep -q "$MSG"; then
+    COUNT=$(echo "$OUTPUT" | grep -c "$MSG" || true)
+    if [ "$COUNT" -eq 0 ]; then
         MISSING=1
         break
+    elif [ "$COUNT" -gt 1 ]; then
+        DUPLICATE=1
+        echo "headless... DUPLICATE: found $COUNT occurrences of $MSG"
     fi
 done
 
-if [ $MISSING -eq 0 ]; then
+if [ $MISSING -eq 0 ] && [ $DUPLICATE -eq 0 ]; then
     echo "headless... all 5 console levels captured"
-else
+elif [ $MISSING -eq 1 ]; then
     echo "headless... NOT all console levels captured (wasm-bindgen-test-runner limitation)"
+    FAILED=$((FAILED + 1))
+else
+    echo "headless... DUPLICATE logs detected (wasm-bindgen-test-runner issue)"
     FAILED=$((FAILED + 1))
 fi
 

@@ -37,14 +37,15 @@ pub async fn thread_log() {
         console::warn_1(&"THREAD_WARN_3a6c8d".into());
         console::error_1(&"THREAD_ERROR_1d9f4a".into());
     }).join_async().await;
+
 }
 
 /// Spawns a thread and panics from within it
 #[wasm_bindgen]
-pub fn thread_panic() {
+pub async fn thread_panic() {
     wasm_safe_thread::spawn(|| {
         panic!("log_party panic from thread!");
-    });
+    }).join_async().await.unwrap();
 }
 
 /// Spawns a thread and panics from within it with console_error_panic_hook enabled
